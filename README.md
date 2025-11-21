@@ -1,6 +1,4 @@
-Here is a detailed `README.md` file for your **Airplane Ticketing System** project. I have structured it based on the code provided, highlighting the features, tech stack, setup instructions, and the API dependencies required for the application to function correctly.
 
------
 
 # Airplane Ticketing System (AMS) - Client Application
 
