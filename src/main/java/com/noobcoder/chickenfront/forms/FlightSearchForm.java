@@ -1,8 +1,8 @@
 package com.noobcoder.chickenfront.forms;
 
 import com.noobcoder.chickenfront.util.HttpClientUtil;
-
 import javax.swing.*;
+import javax.swing.border.EmptyBorder;
 import javax.swing.table.DefaultTableModel;
 import java.awt.*;
 import java.time.LocalDate;
@@ -13,7 +13,6 @@ import java.net.http.HttpResponse;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
-
 import java.io.IOException;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeParseException;
@@ -22,7 +21,7 @@ import java.net.URISyntaxException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 
-public class FlightSearchForm extends JFrame {
+public class FlightSearchForm extends BaseCustomerFrame {
     private JTextField departureField;
     private JTextField destinationField;
     private JSpinner datePicker;
@@ -30,125 +29,118 @@ public class FlightSearchForm extends JFrame {
     private DefaultTableModel tableModel;
     private JButton searchButton;
     private JButton showAllButton;
-    private JButton backButton;
-
-    // Theme colors from AdminDashboardForm
-    private final Color PRIMARY_BLUE = new Color(41, 128, 185);
-    private final Color DARK_BLUE = new Color(23, 32, 42);
-    private final Color BACKGROUND_COLOR = new Color(248, 249, 250);
-    private final Color WHITE = Color.WHITE;
 
     public FlightSearchForm() {
-        // Set authentication credentials (using provided admin credentials)
-        try {
-            String username = "admin@example.com"; // Provided username
-            String password = "admin123"; // Provided password
-            HttpClientUtil.setAuthCredentials(username, password);
-            System.err.println("Authentication set successfully in FlightSearchForm constructor with user: " + username);
-        } catch (Exception e) {
-            System.err.println("Failed to set authentication credentials: " + e.getMessage());
-            e.printStackTrace();
-            JOptionPane.showMessageDialog(this, "Authentication setup error: " + e.getMessage());
-        }
+        super("Search Flights");
+        createSearchContent();
+        loadFlights();
+        setVisible(true);
+    }
 
-        setTitle("AMS - Search Flights");
-        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        setSize(600, 400);
-        setLocationRelativeTo(null);
-        getContentPane().setBackground(BACKGROUND_COLOR); // Updated to match AdminDashboardForm
+    private void createSearchContent() {
+        // Header Title
+        JLabel titleLabel = new JLabel("Search Flights");
+        titleLabel.setForeground(DARK_BLUE);
+        titleLabel.setFont(new Font("Segoe UI", Font.BOLD, 32));
+        titleLabel.setBorder(new EmptyBorder(0, 0, 20, 0));
 
-        JPanel mainPanel = new JPanel(new GridLayout(4, 1, 20, 20));
-        mainPanel.setBackground(BACKGROUND_COLOR); // Updated to match AdminDashboardForm
-        mainPanel.setBorder(BorderFactory.createEmptyBorder(30, 30, 30, 30)); // Updated padding to match AdminDashboardForm
+        // Parameter Card Panel (to group search inputs horizontally without stretching)
+        JPanel searchCard = new JPanel(new FlowLayout(FlowLayout.CENTER, 20, 15));
+        searchCard.setBackground(WHITE);
+        searchCard.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(new Color(230, 230, 230), 1),
+                BorderFactory.createEmptyBorder(15, 20, 15, 20)
+        ));
 
-        JLabel titleLabel = new JLabel("Search Flights", SwingConstants.CENTER);
-        titleLabel.setForeground(DARK_BLUE); // Updated to match AdminDashboardForm
-        titleLabel.setFont(new Font("Segoe UI", Font.BOLD, 32)); // Updated to match AdminDashboardForm
-        mainPanel.add(titleLabel);
-
-        JPanel inputPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 10, 0));
-        inputPanel.setBackground(BACKGROUND_COLOR); // Updated to match AdminDashboardForm
         JLabel departureLabel = new JLabel("Departure:");
-        departureLabel.setForeground(DARK_BLUE); // Updated to match AdminDashboardForm
-        departureLabel.setFont(new Font("Segoe UI", Font.PLAIN, 14)); // Updated to match AdminDashboardForm
-        departureField = new JTextField(10);
-        departureField.setFont(new Font("Segoe UI", Font.PLAIN, 14)); // Consistent font for input
+        departureLabel.setForeground(DARK_BLUE);
+        departureLabel.setFont(new Font("Segoe UI", Font.BOLD, 14));
+        departureField = new JTextField(12);
+        departureField.setFont(new Font("Segoe UI", Font.PLAIN, 14));
+        departureField.setPreferredSize(new Dimension(150, 35));
+
         JLabel destinationLabel = new JLabel("Destination:");
-        destinationLabel.setForeground(DARK_BLUE); // Updated to match AdminDashboardForm
-        destinationLabel.setFont(new Font("Segoe UI", Font.PLAIN, 14)); // Updated to match AdminDashboardForm
-        destinationField = new JTextField(10);
-        destinationField.setFont(new Font("Segoe UI", Font.PLAIN, 14)); // Consistent font for input
+        destinationLabel.setForeground(DARK_BLUE);
+        destinationLabel.setFont(new Font("Segoe UI", Font.BOLD, 14));
+        destinationField = new JTextField(12);
+        destinationField.setFont(new Font("Segoe UI", Font.PLAIN, 14));
+        destinationField.setPreferredSize(new Dimension(150, 35));
+
         JLabel dateLabel = new JLabel("Date:");
-        dateLabel.setForeground(DARK_BLUE); // Updated to match AdminDashboardForm
-        dateLabel.setFont(new Font("Segoe UI", Font.PLAIN, 14)); // Updated to match AdminDashboardForm
-        // Use SpinnerDateModel with a Date object
+        dateLabel.setForeground(DARK_BLUE);
+        dateLabel.setFont(new Font("Segoe UI", Font.BOLD, 14));
+
         Date currentDate = Date.from(LocalDate.of(2025, 5, 26).atStartOfDay(ZoneId.systemDefault()).toInstant());
         datePicker = new JSpinner(new SpinnerDateModel(currentDate, null, null, java.util.Calendar.DAY_OF_MONTH));
-        datePicker.setFont(new Font("Segoe UI", Font.PLAIN, 14)); // Consistent font for spinner
+        datePicker.setFont(new Font("Segoe UI", Font.PLAIN, 14));
+        datePicker.setPreferredSize(new Dimension(130, 35));
         JSpinner.DateEditor dateEditor = new JSpinner.DateEditor(datePicker, "yyyy-MM-dd");
         datePicker.setEditor(dateEditor);
-        // Log initial date picker value
-        System.err.println("Initial date picker value: " + ((JSpinner.DateEditor) datePicker.getEditor()).getFormat().format(datePicker.getValue()));
-        searchButton = new CustomStyledButton("Search", 30, PRIMARY_BLUE, WHITE, 2); // Updated to match AdminDashboardForm
-        searchButton.setFont(new Font("Segoe UI", Font.BOLD, 14)); // Updated to match AdminDashboardForm
-        searchButton.addActionListener(e -> {
-            System.err.println("Search button clicked");
-            try {
-                searchFlights();
-            } catch (Exception ex) {
-                System.err.println("Error in Search Flights ActionListener: " + ex.getMessage());
-                ex.printStackTrace();
-                JOptionPane.showMessageDialog(this, "Unexpected error in Search Flights: " + ex.getMessage());
-            }
-        });
-        showAllButton = new CustomStyledButton("Show All Flights", 30, PRIMARY_BLUE, WHITE, 2); // Updated to match AdminDashboardForm
-        showAllButton.setFont(new Font("Segoe UI", Font.BOLD, 14)); // Updated to match AdminDashboardForm
-        showAllButton.addActionListener(e -> {
-            System.err.println("Show All button clicked");
-            try {
-                showAllFlights();
-            } catch (Exception ex) {
-                System.err.println("Error in Show All Flights ActionListener: " + ex.getMessage());
-                ex.printStackTrace();
-                JOptionPane.showMessageDialog(this, "Unexpected error in Show All Flights: " + ex.getMessage());
-            }
-        });
-        inputPanel.add(departureLabel);
-        inputPanel.add(departureField);
-        inputPanel.add(destinationLabel);
-        inputPanel.add(destinationField);
-        inputPanel.add(dateLabel);
-        inputPanel.add(datePicker);
-        inputPanel.add(searchButton);
-        inputPanel.add(showAllButton);
-        mainPanel.add(inputPanel);
 
-        String[] columns = {"Flight Number", "Departure", "Destination", "Date", "Dep Time", "Arr Time"};
-        tableModel = new DefaultTableModel(columns, 0);
+        searchButton = new CustomStyledButton("Search", 30, PRIMARY_BLUE, WHITE, 2);
+        searchButton.setFont(new Font("Segoe UI", Font.BOLD, 14));
+        searchButton.setPreferredSize(new Dimension(110, 35));
+        searchButton.addActionListener(e -> searchFlights());
+
+        showAllButton = new CustomStyledButton("Show All", 30, PRIMARY_BLUE, WHITE, 2);
+        showAllButton.setFont(new Font("Segoe UI", Font.BOLD, 14));
+        showAllButton.setPreferredSize(new Dimension(110, 35));
+        showAllButton.addActionListener(e -> showAllFlights());
+
+        searchCard.add(departureLabel);
+        searchCard.add(departureField);
+        searchCard.add(destinationLabel);
+        searchCard.add(destinationField);
+        searchCard.add(dateLabel);
+        searchCard.add(datePicker);
+        searchCard.add(searchButton);
+        searchCard.add(showAllButton);
+
+        // Results Table Panel
+        JPanel tablePanel = new JPanel(new BorderLayout());
+        tablePanel.setBackground(WHITE);
+        tablePanel.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(new Color(230, 230, 230), 1),
+                BorderFactory.createEmptyBorder(20, 20, 20, 20)
+        ));
+
+        JLabel tableTitle = new JLabel("Available Flights");
+        tableTitle.setFont(new Font("Segoe UI", Font.BOLD, 20));
+        tableTitle.setForeground(DARK_BLUE);
+        tableTitle.setBorder(new EmptyBorder(0, 0, 15, 0));
+
+        String[] columns = {"Flight Number", "Origin", "Destination", "Date", "Dep Time", "Arr Time", "Price"};
+        tableModel = new DefaultTableModel(columns, 0) {
+            @Override
+            public boolean isCellEditable(int row, int column) {
+                return false;
+            }
+        };
+
         flightTable = new JTable(tableModel);
-        flightTable.setBackground(BACKGROUND_COLOR); // Updated to match AdminDashboardForm
-        flightTable.setFont(new Font("Segoe UI", Font.PLAIN, 14)); // Consistent font for table
-        JScrollPane tableScrollPane = new JScrollPane(flightTable);
-        mainPanel.add(tableScrollPane);
+        styleTable(flightTable); // Reuse base style!
 
-        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 10, 0));
-        buttonPanel.setBackground(BACKGROUND_COLOR); // Updated to match AdminDashboardForm
-        backButton = new CustomStyledButton("Back to Home", 30, PRIMARY_BLUE, WHITE, 2); // Updated to match AdminDashboardForm
-        backButton.setFont(new Font("Segoe UI", Font.BOLD, 14)); // Updated to match AdminDashboardForm
-        backButton.addActionListener(e -> goToHome());
-        buttonPanel.add(backButton);
-        mainPanel.add(buttonPanel);
+        JScrollPane scrollPane = new JScrollPane(flightTable);
+        scrollPane.setBorder(BorderFactory.createEmptyBorder());
+        scrollPane.getViewport().setBackground(WHITE);
 
-        add(mainPanel);
-        loadFlights();
+        tablePanel.add(tableTitle, BorderLayout.NORTH);
+        tablePanel.add(scrollPane, BorderLayout.CENTER);
+
+        // Assemble into mainPanel (defined in BaseCustomerFrame)
+        JPanel topPanel = new JPanel(new BorderLayout(0, 20));
+        topPanel.setOpaque(false);
+        topPanel.add(titleLabel, BorderLayout.NORTH);
+        topPanel.add(searchCard, BorderLayout.CENTER);
+
+        mainPanel.add(topPanel, BorderLayout.NORTH);
+        mainPanel.add(tablePanel, BorderLayout.CENTER);
     }
 
     private void loadFlights() {
         try {
-            System.err.println("Loading flights initially...");
             showAllFlights();
         } catch (Exception e) {
-            System.err.println("Error in loadFlights: " + e.getMessage());
             e.printStackTrace();
             JOptionPane.showMessageDialog(this, "Error loading flights: " + e.getMessage());
         }
@@ -157,170 +149,107 @@ public class FlightSearchForm extends JFrame {
     private void searchFlights() {
         String departure = departureField.getText().trim();
         String destination = destinationField.getText().trim();
-        // Get the raw date from the JSpinner
         Date dateValue = (Date) datePicker.getValue();
-        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
-        String date = formatter.format(dateValue.toInstant().atZone(ZoneId.systemDefault()).toLocalDate());
-        System.err.println("Raw date picker value: " + dateValue);
-        System.err.println("Formatted date for search: " + date);
+        if (dateValue == null) {
+            dateValue = new Date();
+        }
+        java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("yyyy-MM-dd");
+        String date = sdf.format(dateValue);
 
-        tableModel.setRowCount(0); // Clear existing rows
-        System.err.println("Searching flights - Departure: " + departure + ", Destination: " + destination + ", Date: " + date);
+        tableModel.setRowCount(0);
 
         try {
-            // Use the date as-is in yyyy-MM-dd format
-            String formattedDate = date; // Already in yyyy-MM-dd format
-            System.err.println("Formatted date for backend: " + formattedDate);
-
-            // Validate and construct URL
-            String baseUrl = "http://localhost:8080"; // Adjust to your application server port
             String queryParams = "?origin=" + (departure.isEmpty() ? "" : URLEncoder.encode(departure, StandardCharsets.UTF_8)) +
                     "&destination=" + (destination.isEmpty() ? "" : URLEncoder.encode(destination, StandardCharsets.UTF_8)) +
-                    "&date=" + (formattedDate.isEmpty() ? "" : URLEncoder.encode(formattedDate, StandardCharsets.UTF_8));
+                    "&date=" + (date.isEmpty() ? "" : URLEncoder.encode(date, StandardCharsets.UTF_8));
             String fullUrl = "/flights/search" + queryParams;
-            URI uri = new URI(baseUrl + fullUrl);
-            System.err.println("Constructed URI: " + uri.toString());
 
-            HttpResponse<String> response = HttpClientUtil.sendGetRequest(fullUrl); // Pass relative endpoint
-            System.err.println("Response Status: " + response.statusCode() + ", Headers: " + response.headers() + ", Body: " + response.body());
+            HttpResponse<String> response = HttpClientUtil.sendGetRequest(fullUrl);
 
             if (response.statusCode() == 200) {
-                System.err.println("Response Body: " + response.body());
-                JSONArray flights = new JSONArray(response.body());
+                JSONArray flights = new JSONArray();
+                try {
+                    flights = new JSONObject(response.body()).getJSONArray("content");
+                } catch (Exception ex) {
+                    flights = new JSONArray(response.body());
+                }
                 DateTimeFormatter timeFormatter = DateTimeFormatter.ofPattern("HH:mm");
                 for (int i = 0; i < flights.length(); i++) {
                     JSONObject flight = flights.getJSONObject(i);
-                    String depTimeStr = flight.getString("departureTime");
-                    String arrTimeStr = flight.getString("arrivalTime");
-                    System.err.println("Parsing departureTime: " + depTimeStr + ", arrivalTime: " + arrTimeStr);
+                    String depTimeStr = flight.optString("departureTime", flight.optString("departure_time", ""));
+                    String arrTimeStr = flight.optString("arrivalTime", flight.optString("arrival_time", ""));
                     LocalDateTime depTime = parseTimeSafely(depTimeStr);
                     LocalDateTime arrTime = parseTimeSafely(arrTimeStr);
                     tableModel.addRow(new Object[]{
-                            flight.getString("flightNumber"),
-                            flight.getString("origin"),
-                            flight.getString("destination"),
+                            flight.optString("flightNumber", flight.optString("flight_number", "N/A")),
+                            flight.optString("origin", "N/A"),
+                            flight.optString("destination", "N/A"),
                             depTime.toLocalDate(),
                             depTime.format(timeFormatter),
-                            arrTime.format(timeFormatter)
+                            arrTime.format(timeFormatter),
+                            String.format("$%.2f", flight.optDouble("price", 0.0))
                     });
                 }
                 JOptionPane.showMessageDialog(this, "Found " + tableModel.getRowCount() + " flight(s).");
             } else {
-                JOptionPane.showMessageDialog(this, "Failed to search flights: Status " + response.statusCode() + " - " + response.body());
+                JOptionPane.showMessageDialog(this, "Failed to search flights: Status " + response.statusCode());
             }
-        } catch (IOException e) {
-            System.err.println("IO Exception in searchFlights: " + e.getMessage());
-            e.printStackTrace();
-            JOptionPane.showMessageDialog(this, "Network error: " + e.getMessage());
-        } catch (JSONException e) {
-            System.err.println("JSON Exception in searchFlights: " + e.getMessage());
-            e.printStackTrace();
-            JOptionPane.showMessageDialog(this, "Invalid response format: " + e.getMessage());
-        } catch (DateTimeParseException e) {
-            System.err.println("DateTime Parse Exception in searchFlights: " + e.getMessage());
-            e.printStackTrace();
-            JOptionPane.showMessageDialog(this, "Invalid date/time format: " + e.getMessage());
-        } catch (IllegalArgumentException e) {
-            System.err.println("Illegal Argument Exception in searchFlights: " + e.getMessage());
-            e.printStackTrace();
-            JOptionPane.showMessageDialog(this, "Illegal value error: " + e.getMessage());
-        } catch (URISyntaxException e) {
-            System.err.println("URI Syntax Exception in searchFlights: " + e.getMessage());
-            e.printStackTrace();
-            JOptionPane.showMessageDialog(this, "Invalid URL: " + e.getMessage());
         } catch (Exception e) {
-            System.err.println("Unexpected error in searchFlights: " + e.getMessage());
             e.printStackTrace();
             JOptionPane.showMessageDialog(this, "Error: " + e.getMessage());
         }
     }
 
     private void showAllFlights() {
-        tableModel.setRowCount(0); // Clear existing rows
-        System.err.println("Loading all flights...");
-
+        tableModel.setRowCount(0);
         try {
-            String endpoint = "/admin/flights"; // Working endpoint
-            URI fullUri = new URI("http://localhost:8080" + endpoint);
-            System.err.println("Requesting URI: " + fullUri.toString());
-
-            HttpResponse<String> response = HttpClientUtil.sendGetRequest(endpoint);
-            System.err.println("Response Status: " + response.statusCode() + ", Headers: " + response.headers() + ", Body: " + response.body());
-
+            HttpResponse<String> response = HttpClientUtil.sendGetRequest("/flights");
             if (response.statusCode() == 200) {
-                System.err.println("Response Body: " + response.body());
-                JSONArray flights = new JSONArray(response.body());
+                JSONArray flights = new JSONArray();
+                try {
+                    flights = new JSONObject(response.body()).getJSONArray("content");
+                } catch (Exception ex) {
+                    flights = new JSONArray(response.body());
+                }
                 DateTimeFormatter timeFormatter = DateTimeFormatter.ofPattern("HH:mm");
                 for (int i = 0; i < flights.length(); i++) {
                     JSONObject flight = flights.getJSONObject(i);
-                    String depTimeStr = flight.getString("departureTime");
-                    String arrTimeStr = flight.getString("arrivalTime");
-                    System.err.println("Parsing departureTime: " + depTimeStr + ", arrivalTime: " + arrTimeStr);
+                    String depTimeStr = flight.optString("departureTime", flight.optString("departure_time", ""));
+                    String arrTimeStr = flight.optString("arrivalTime", flight.optString("arrival_time", ""));
                     LocalDateTime depTime = parseTimeSafely(depTimeStr);
                     LocalDateTime arrTime = parseTimeSafely(arrTimeStr);
                     tableModel.addRow(new Object[]{
-                            flight.getString("flightNumber"),
-                            flight.getString("origin"),
-                            flight.getString("destination"),
+                            flight.optString("flightNumber", flight.optString("flight_number", "N/A")),
+                            flight.optString("origin", "N/A"),
+                            flight.optString("destination", "N/A"),
                             depTime.toLocalDate(),
                             depTime.format(timeFormatter),
-                            arrTime.format(timeFormatter)
+                            arrTime.format(timeFormatter),
+                            String.format("$%.2f", flight.optDouble("price", 0.0))
                     });
                 }
-                JOptionPane.showMessageDialog(this, "Displaying all available flights (" + tableModel.getRowCount() + ").");
             } else {
-                JOptionPane.showMessageDialog(this, "Failed to load flights: Status " + response.statusCode() + " - " + response.body());
+                JOptionPane.showMessageDialog(this, "Failed to load flights: Status " + response.statusCode());
             }
-        } catch (IOException e) {
-            System.err.println("IO Exception in showAllFlights: " + e.getMessage());
-            e.printStackTrace();
-            JOptionPane.showMessageDialog(this, "Network error: " + e.getMessage());
-        } catch (JSONException e) {
-            System.err.println("JSON Exception in showAllFlights: " + e.getMessage());
-            e.printStackTrace();
-            JOptionPane.showMessageDialog(this, "Invalid response format: " + e.getMessage());
-        } catch (DateTimeParseException e) {
-            System.err.println("DateTime Parse Exception in showAllFlights: " + e.getMessage());
-            e.printStackTrace();
-            JOptionPane.showMessageDialog(this, "Invalid date/time format: " + e.getMessage());
-        } catch (IllegalArgumentException e) {
-            System.err.println("Illegal Argument Exception in showAllFlights: " + e.getMessage());
-            e.printStackTrace();
-            JOptionPane.showMessageDialog(this, "Illegal value error: " + e.getMessage());
-        } catch (URISyntaxException e) {
-            System.err.println("URI Syntax Exception in showAllFlights: " + e.getMessage());
-            e.printStackTrace();
-            JOptionPane.showMessageDialog(this, "Invalid URL: " + e.getMessage());
         } catch (Exception e) {
-            System.err.println("Unexpected error in showAllFlights: " + e.getMessage());
             e.printStackTrace();
             JOptionPane.showMessageDialog(this, "Error: " + e.getMessage());
         }
     }
 
     private LocalDateTime parseTimeSafely(String timeStr) {
+        if (timeStr == null || timeStr.trim().isEmpty()) {
+            return LocalDateTime.now();
+        }
         try {
             return LocalDateTime.parse(timeStr, DateTimeFormatter.ISO_LOCAL_DATE_TIME);
         } catch (DateTimeParseException e) {
-            System.err.println("Failed to parse time: " + timeStr + " - Using fallback: " + LocalDateTime.now());
-            return LocalDateTime.now(); // Fallback to current time if parsing fails
+            return LocalDateTime.now();
         }
     }
 
-    private void goToHome() {
-        dispose();
-        HttpClientUtil.clearAuthCredentials();
-        new AirlineReservationDashboard().setVisible(true);
-    }
-
     public static void main(String[] args) {
-        // Set an uncaught exception handler for Swing EDT
         SwingUtilities.invokeLater(() -> {
-            Thread.currentThread().setUncaughtExceptionHandler((thread, throwable) -> {
-                System.err.println("Uncaught exception in EDT: " + throwable.getMessage());
-                throwable.printStackTrace();
-                JOptionPane.showMessageDialog(null, "Critical error: " + throwable.getMessage());
-            });
             new FlightSearchForm().setVisible(true);
         });
     }

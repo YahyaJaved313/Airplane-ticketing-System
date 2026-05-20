@@ -26,13 +26,34 @@ public class RegisterForm extends JFrame {
         this.loginForm = loginForm;
         setTitle("AMS - Register");
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        setSize(400, 400);
-        setLocationRelativeTo(null);
+        setExtendedState(JFrame.MAXIMIZED_BOTH);
+        setMinimumSize(new Dimension(1000, 600));
         getContentPane().setBackground(BACKGROUND_COLOR); // Updated to match LoginForm
 
-        JPanel mainPanel = new JPanel(new GridLayout(6, 1, 20, 20));
-        mainPanel.setBackground(BACKGROUND_COLOR); // Updated to match LoginForm
-        mainPanel.setBorder(BorderFactory.createEmptyBorder(30, 30, 30, 30)); // Updated padding to match LoginForm
+        JPanel backgroundPanel = new JPanel() {
+            @Override
+            protected void paintComponent(Graphics g) {
+                super.paintComponent(g);
+                Graphics2D g2d = (Graphics2D) g.create();
+                g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                GradientPaint gradient = new GradientPaint(
+                        0, 0, PRIMARY_BLUE,
+                        0, getHeight(), new Color(52, 73, 94)
+                );
+                g2d.setPaint(gradient);
+                g2d.fillRect(0, 0, getWidth(), getHeight());
+                g2d.dispose();
+            }
+        };
+        backgroundPanel.setLayout(new GridBagLayout());
+        setContentPane(backgroundPanel);
+
+        JPanel mainPanel = new JPanel(new GridLayout(7, 1, 10, 10));
+        mainPanel.setBackground(WHITE);
+        mainPanel.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(new Color(230, 230, 230), 1),
+                BorderFactory.createEmptyBorder(30, 30, 30, 30)
+        ));
 
         JLabel titleLabel = new JLabel("Register", SwingConstants.CENTER);
         titleLabel.setForeground(DARK_BLUE); // Updated to match LoginForm
@@ -40,7 +61,7 @@ public class RegisterForm extends JFrame {
         mainPanel.add(titleLabel);
 
         JPanel usernamePanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 10, 0));
-        usernamePanel.setBackground(BACKGROUND_COLOR); // Updated to match LoginForm
+        usernamePanel.setOpaque(false);
         JLabel usernameLabel = new JLabel("Username:");
         usernameLabel.setForeground(DARK_BLUE); // Updated to match LoginForm
         usernameLabel.setFont(new Font("Segoe UI", Font.PLAIN, 14)); // Updated to match LoginForm
@@ -51,7 +72,7 @@ public class RegisterForm extends JFrame {
         mainPanel.add(usernamePanel);
 
         JPanel emailPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 10, 0));
-        emailPanel.setBackground(BACKGROUND_COLOR); // Updated to match LoginForm
+        emailPanel.setOpaque(false);
         JLabel emailLabel = new JLabel("Email:");
         emailLabel.setForeground(DARK_BLUE); // Updated to match LoginForm
         emailLabel.setFont(new Font("Segoe UI", Font.PLAIN, 14)); // Updated to match LoginForm
@@ -62,7 +83,7 @@ public class RegisterForm extends JFrame {
         mainPanel.add(emailPanel);
 
         JPanel passwordPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 10, 0));
-        passwordPanel.setBackground(BACKGROUND_COLOR); // Updated to match LoginForm
+        passwordPanel.setOpaque(false);
         JLabel passwordLabel = new JLabel("Password:");
         passwordLabel.setForeground(DARK_BLUE); // Updated to match LoginForm
         passwordLabel.setFont(new Font("Segoe UI", Font.PLAIN, 14)); // Updated to match LoginForm
@@ -73,7 +94,7 @@ public class RegisterForm extends JFrame {
         mainPanel.add(passwordPanel);
 
         JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 10, 0));
-        buttonPanel.setBackground(BACKGROUND_COLOR); // Updated to match LoginForm
+        buttonPanel.setOpaque(false);
         registerButton = new CustomStyledButton("Register", 30, PRIMARY_BLUE, WHITE, 2); // Updated to match LoginForm
         registerButton.setFont(new Font("Segoe UI", Font.BOLD, 14)); // Updated to match LoginForm
         registerButton.addActionListener(e -> register());
@@ -89,7 +110,7 @@ public class RegisterForm extends JFrame {
         messageLabel.setFont(new Font("Segoe UI", Font.PLAIN, 14)); // Updated to match LoginForm
         mainPanel.add(messageLabel);
 
-        add(mainPanel);
+        backgroundPanel.add(mainPanel);
     }
 
     private void register() {

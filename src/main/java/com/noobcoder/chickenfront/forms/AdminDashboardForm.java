@@ -11,6 +11,7 @@ import java.awt.geom.RoundRectangle2D;
 import java.net.http.HttpResponse;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import com.noobcoder.chickenfront.util.HttpClientUtil;
@@ -237,7 +238,7 @@ public class AdminDashboardForm extends JFrame {
         tableTitle.setForeground(DARK_BLUE);
         tableTitle.setBorder(new EmptyBorder(0, 0, 20, 0));
 
-        String[] columns = {"Flight Number", "Origin", "Destination", "Departure", "Arrival"};
+        String[] columns = {"Flight Number", "Origin", "Destination", "Departure", "Arrival", "Price"};
         tableModel = new DefaultTableModel(columns, 0) {
             @Override
             public boolean isCellEditable(int row, int column) {
@@ -317,7 +318,7 @@ public class AdminDashboardForm extends JFrame {
 
             if (res.statusCode() == 200) {
                 tableModel.setRowCount(0);
-                JSONArray flights = new JSONArray(res.body());
+                JSONArray flights = new JSONObject(res.body()).getJSONArray("content");
                 DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
 
                 for (int i = 0; i < flights.length(); i++) {
@@ -330,7 +331,8 @@ public class AdminDashboardForm extends JFrame {
                             f.getString("origin"),
                             f.getString("destination"),
                             departure.format(formatter),
-                            arrival.format(formatter)
+                            arrival.format(formatter),
+                            f.optDouble("price", 0.0)
                     });
                 }
                 messageLabel.setText("Flights loaded: " + flights.length());
@@ -355,6 +357,7 @@ public class AdminDashboardForm extends JFrame {
     private void addOrModifyFlight(boolean isModify) {
         int row = isModify ? flightTable.getSelectedRow() : -1;
         if (isModify && row == -1) {
+            JOptionPane.showMessageDialog(this, "Select a flight to modify.", "Warning", JOptionPane.WARNING_MESSAGE);
             messageLabel.setText("Select a flight to modify.");
             return;
         }
@@ -364,47 +367,110 @@ public class AdminDashboardForm extends JFrame {
         JTextField destinationField = new JTextField(isModify ? tableModel.getValueAt(row, 2).toString() : "", 10);
         JTextField departureField = new JTextField(isModify ? tableModel.getValueAt(row, 3).toString() : "", 10);
         JTextField arrivalField = new JTextField(isModify ? tableModel.getValueAt(row, 4).toString() : "", 10);
+        JTextField priceField = new JTextField(isModify ? tableModel.getValueAt(row, 5).toString() : "", 10);
 
-        JPanel panel = new JPanel(new GridLayout(5, 2));
+        JPanel panel = new JPanel(new GridLayout(6, 2, 10, 10));
         panel.add(new JLabel("Flight #:")); panel.add(flightNumberField);
         panel.add(new JLabel("Origin:")); panel.add(originField);
         panel.add(new JLabel("Destination:")); panel.add(destinationField);
         panel.add(new JLabel("Departure (YYYY-MM-DD HH:MM):")); panel.add(departureField);
         panel.add(new JLabel("Arrival (YYYY-MM-DD HH:MM):")); panel.add(arrivalField);
+        panel.add(new JLabel("Price ($):")); panel.add(priceField);
 
         int result = JOptionPane.showConfirmDialog(this, panel, (isModify ? "Modify" : "Add") + " Flight", JOptionPane.OK_CANCEL_OPTION);
         if (result == JOptionPane.OK_OPTION) {
             try {
+                String flightNumber = flightNumberField.getText().trim();
+                String origin = originField.getText().trim();
+                String destination = destinationField.getText().trim();
+                String departureStr = departureField.getText().trim();
+                String arrivalStr = arrivalField.getText().trim();
+                String priceStr = priceField.getText().trim();
+
+                if (flightNumber.isEmpty() || origin.isEmpty() || destination.isEmpty() || 
+                    departureStr.isEmpty() || arrivalStr.isEmpty() || priceStr.isEmpty()) {
+                    JOptionPane.showMessageDialog(this, "All fields are required.", "Validation Error", JOptionPane.ERROR_MESSAGE);
+                    return;
+                }
+
+                double price;
+                try {
+                    price = Double.parseDouble(priceStr);
+                    if (price < 0) {
+                        JOptionPane.showMessageDialog(this, "Price must be a non-negative number.", "Validation Error", JOptionPane.ERROR_MESSAGE);
+                        return;
+                    }
+                } catch (NumberFormatException nfe) {
+                    JOptionPane.showMessageDialog(this, "Invalid price format. Please enter a valid number.", "Validation Error", JOptionPane.ERROR_MESSAGE);
+                    return;
+                }
+
                 // Convert input format (YYYY-MM-DD HH:MM) to API format (YYYY-MM-DDTHH:MM:SS)
                 DateTimeFormatter inputFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
                 DateTimeFormatter apiFormatter = DateTimeFormatter.ISO_LOCAL_DATE_TIME;
-                LocalDateTime departure = LocalDateTime.parse(departureField.getText(), inputFormatter);
-                LocalDateTime arrival = LocalDateTime.parse(arrivalField.getText(), inputFormatter);
+                LocalDateTime departure;
+                LocalDateTime arrival;
+                try {
+                    departure = LocalDateTime.parse(departureStr, inputFormatter);
+                } catch (DateTimeParseException e) {
+                    JOptionPane.showMessageDialog(this, "Departure time must match YYYY-MM-DD HH:MM.", "Validation Error", JOptionPane.ERROR_MESSAGE);
+                    return;
+                }
+                try {
+                    arrival = LocalDateTime.parse(arrivalStr, inputFormatter);
+                } catch (DateTimeParseException e) {
+                    JOptionPane.showMessageDialog(this, "Arrival time must match YYYY-MM-DD HH:MM.", "Validation Error", JOptionPane.ERROR_MESSAGE);
+                    return;
+                }
+
+                if (departure.isAfter(arrival) || departure.isEqual(arrival)) {
+                    JOptionPane.showMessageDialog(this, "Departure time must be before arrival time.", "Validation Error", JOptionPane.ERROR_MESSAGE);
+                    return;
+                }
 
                 JSONObject json = new JSONObject()
-                        .put("flightNumber", flightNumberField.getText())
-                        .put("origin", originField.getText())
-                        .put("destination", destinationField.getText())
+                        .put("flightNumber", flightNumber)
+                        .put("origin", origin)
+                        .put("destination", destination)
                         .put("departureTime", departure.format(apiFormatter))
-                        .put("arrivalTime", arrival.format(apiFormatter));
+                        .put("arrivalTime", arrival.format(apiFormatter))
+                        .put("price", price);
 
                 if (isModify) {
-                    HttpResponse<String> getResp = HttpClientUtil.sendGetRequest("/admin/flights/" + flightNumberField.getText());
-                    JSONObject existing = new JSONObject(getResp.body());
-                    json.put("totalSeats", existing.getInt("totalSeats"));
-                    json.put("availableSeats", existing.getInt("availableSeats"));
+                    HttpResponse<String> getResp = HttpClientUtil.sendGetRequest("/admin/flights/" + flightNumber);
+                    if (getResp.statusCode() == 200) {
+                        JSONObject existing = new JSONObject(getResp.body());
+                        json.put("totalSeats", existing.optInt("totalSeats", 100));
+                        json.put("availableSeats", existing.optInt("availableSeats", 100));
+                    } else {
+                        json.put("totalSeats", 100);
+                        json.put("availableSeats", 100);
+                    }
 
-                    HttpResponse<String> putResp = HttpClientUtil.sendPutRequest("/admin/flights/" + flightNumberField.getText(), json.toString());
-                    messageLabel.setText(putResp.statusCode() == 200 ? "Modified successfully." : "Modify failed: HTTP " + putResp.statusCode());
+                    HttpResponse<String> putResp = HttpClientUtil.sendPutRequest("/admin/flights/" + flightNumber, json.toString());
+                    if (putResp.statusCode() == 200) {
+                        JOptionPane.showMessageDialog(this, "Flight modified successfully.", "Success", JOptionPane.INFORMATION_MESSAGE);
+                        messageLabel.setText("Modified successfully.");
+                    } else {
+                        JOptionPane.showMessageDialog(this, "Modify failed: HTTP " + putResp.statusCode() + "\n" + putResp.body(), "Error", JOptionPane.ERROR_MESSAGE);
+                        messageLabel.setText("Modify failed: HTTP " + putResp.statusCode());
+                    }
                 } else {
                     json.put("totalSeats", 100);
                     json.put("availableSeats", 100);
                     HttpResponse<String> postResp = HttpClientUtil.sendPostRequest("/admin/flights", json.toString());
-                    messageLabel.setText(postResp.statusCode() == 200 ? "Added successfully." : "Add failed: HTTP " + postResp.statusCode());
+                    if (postResp.statusCode() == 200) {
+                        JOptionPane.showMessageDialog(this, "Flight added successfully.", "Success", JOptionPane.INFORMATION_MESSAGE);
+                        messageLabel.setText("Added successfully.");
+                    } else {
+                        JOptionPane.showMessageDialog(this, "Add failed: HTTP " + postResp.statusCode() + "\n" + postResp.body(), "Error", JOptionPane.ERROR_MESSAGE);
+                        messageLabel.setText("Add failed: HTTP " + postResp.statusCode());
+                    }
                 }
                 loadFlights(); // Auto-update table
             } catch (Exception e) {
                 e.printStackTrace();
+                JOptionPane.showMessageDialog(this, "Error processing flight: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
                 messageLabel.setText("Error processing flight: " + e.getMessage());
             }
         }
