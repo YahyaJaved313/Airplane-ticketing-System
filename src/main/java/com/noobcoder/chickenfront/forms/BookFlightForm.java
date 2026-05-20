@@ -22,10 +22,19 @@ public class BookFlightForm extends BaseCustomerFrame {
     private JTable flightSelectionTable;
     private DefaultTableModel tableModel;
 
+    private int currentPage = 0;
+    private int totalPages = 1;
+    private JButton prevButton;
+    private JButton nextButton;
+    private JLabel pageLabel;
+    private JTable bookingsTable;
+    private DefaultTableModel bookingsTableModel;
+
     public BookFlightForm() {
         super("Book a Flight");
         createBookingContent();
         loadAvailableFlights();
+        loadUserBookings();
         setVisible(true);
     }
 
@@ -113,6 +122,12 @@ public class BookFlightForm extends BaseCustomerFrame {
         bookButton.setAlignmentX(Component.LEFT_ALIGNMENT);
         bookButton.addActionListener(e -> bookFlight());
 
+        JButton cancelBookingButton = new CustomStyledButton("Cancel a Booking", 30, new Color(231, 76, 60), WHITE, 2);
+        cancelBookingButton.setFont(new Font("Segoe UI", Font.BOLD, 14));
+        cancelBookingButton.setMaximumSize(new Dimension(370, 45));
+        cancelBookingButton.setAlignmentX(Component.LEFT_ALIGNMENT);
+        cancelBookingButton.addActionListener(e -> showCancelBookingDialog());
+
         confirmationLabel = new JLabel("", SwingConstants.LEFT);
         confirmationLabel.setForeground(DARK_BLUE);
         confirmationLabel.setFont(new Font("Segoe UI", Font.BOLD, 14));
@@ -123,15 +138,21 @@ public class BookFlightForm extends BaseCustomerFrame {
         bookingCard.add(fieldsPanel);
         bookingCard.add(Box.createVerticalStrut(25));
         bookingCard.add(bookButton);
+        bookingCard.add(Box.createVerticalStrut(10));
+        bookingCard.add(cancelBookingButton);
         bookingCard.add(Box.createVerticalStrut(15));
         bookingCard.add(confirmationLabel);
 
         leftPanel.add(bookingCard, BorderLayout.NORTH);
 
-        // --- Right Panel (Flight Selector Table) ---
-        JPanel rightPanel = new JPanel(new BorderLayout());
-        rightPanel.setBackground(WHITE);
-        rightPanel.setBorder(BorderFactory.createCompoundBorder(
+        // --- Right Panel (Stack of Two Cards: Flights Selection and My Bookings) ---
+        JPanel rightPanel = new JPanel(new GridBagLayout());
+        rightPanel.setOpaque(false);
+
+        // -- Card 1: Available Flights selection --
+        JPanel flightsCard = new JPanel(new BorderLayout(0, 10));
+        flightsCard.setBackground(WHITE);
+        flightsCard.setBorder(BorderFactory.createCompoundBorder(
                 BorderFactory.createLineBorder(new Color(230, 230, 230), 1),
                 BorderFactory.createEmptyBorder(20, 20, 20, 20)
         ));
@@ -139,7 +160,7 @@ public class BookFlightForm extends BaseCustomerFrame {
         JLabel selectTitle = new JLabel("Quick Select: Click a flight to auto-fill the form");
         selectTitle.setFont(new Font("Segoe UI", Font.BOLD, 16));
         selectTitle.setForeground(PRIMARY_BLUE);
-        selectTitle.setBorder(new EmptyBorder(0, 0, 15, 0));
+        selectTitle.setBorder(new EmptyBorder(0, 0, 5, 0));
 
         String[] columns = {"Flight #", "Origin", "Destination", "Seats Available", "Price", "Status"};
         tableModel = new DefaultTableModel(columns, 0) {
@@ -163,16 +184,98 @@ public class BookFlightForm extends BaseCustomerFrame {
             }
         });
 
-        JScrollPane scrollPane = new JScrollPane(flightSelectionTable);
-        scrollPane.setBorder(BorderFactory.createEmptyBorder());
-        scrollPane.getViewport().setBackground(WHITE);
+        JScrollPane flightsScrollPane = new JScrollPane(flightSelectionTable);
+        flightsScrollPane.setBorder(BorderFactory.createEmptyBorder());
+        flightsScrollPane.getViewport().setBackground(WHITE);
 
-        rightPanel.add(selectTitle, BorderLayout.NORTH);
-        rightPanel.add(scrollPane, BorderLayout.CENTER);
+        // Pagination controls panel
+        JPanel paginationPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 15, 0));
+        paginationPanel.setOpaque(false);
 
-        // GridBagConstraints Setup
+        prevButton = new CustomStyledButton("< Prev", 20, PRIMARY_BLUE, WHITE, 1);
+        prevButton.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        prevButton.setPreferredSize(new Dimension(90, 30));
+        prevButton.addActionListener(e -> {
+            if (currentPage > 0) {
+                currentPage--;
+                loadAvailableFlights();
+            }
+        });
+
+        nextButton = new CustomStyledButton("Next >", 20, PRIMARY_BLUE, WHITE, 1);
+        nextButton.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        nextButton.setPreferredSize(new Dimension(90, 30));
+        nextButton.addActionListener(e -> {
+            if (currentPage < totalPages - 1) {
+                currentPage++;
+                loadAvailableFlights();
+            }
+        });
+
+        pageLabel = new JLabel("Page 1 of 1");
+        pageLabel.setFont(new Font("Segoe UI", Font.BOLD, 13));
+        pageLabel.setForeground(DARK_BLUE);
+
+        paginationPanel.add(prevButton);
+        paginationPanel.add(pageLabel);
+        paginationPanel.add(nextButton);
+
+        flightsCard.add(selectTitle, BorderLayout.NORTH);
+        flightsCard.add(flightsScrollPane, BorderLayout.CENTER);
+        flightsCard.add(paginationPanel, BorderLayout.SOUTH);
+
+        // -- Card 2: My Bookings --
+        JPanel bookingsCard = new JPanel(new BorderLayout(0, 10));
+        bookingsCard.setBackground(WHITE);
+        bookingsCard.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(new Color(230, 230, 230), 1),
+                BorderFactory.createEmptyBorder(20, 20, 20, 20)
+        ));
+
+        JLabel bookingsTitle = new JLabel("My Bookings");
+        bookingsTitle.setFont(new Font("Segoe UI", Font.BOLD, 16));
+        bookingsTitle.setForeground(PRIMARY_BLUE);
+        bookingsTitle.setBorder(new EmptyBorder(0, 0, 5, 0));
+
+        String[] bookingColumns = {"Booking ID", "Flight #", "Passenger", "Tickets", "Total Price", "Status", "Date"};
+        bookingsTableModel = new DefaultTableModel(bookingColumns, 0) {
+            @Override
+            public boolean isCellEditable(int row, int column) {
+                return false;
+            }
+        };
+
+        bookingsTable = new JTable(bookingsTableModel);
+        styleTable(bookingsTable);
+
+        JScrollPane bookingsScrollPane = new JScrollPane(bookingsTable);
+        bookingsScrollPane.setBorder(BorderFactory.createEmptyBorder());
+        bookingsScrollPane.getViewport().setBackground(WHITE);
+
+        bookingsCard.add(bookingsTitle, BorderLayout.NORTH);
+        bookingsCard.add(bookingsScrollPane, BorderLayout.CENTER);
+
+        // Add cards to rightPanel with GridBagLayout
+        GridBagConstraints rightGbc = new GridBagConstraints();
+        rightGbc.gridx = 0;
+        rightGbc.fill = GridBagConstraints.BOTH;
+        rightGbc.weightx = 1.0;
+        rightGbc.gridwidth = GridBagConstraints.REMAINDER;
+
+        // Flights Card gets 45% of vertical space, My Bookings gets 55%
+        rightGbc.gridy = 0;
+        rightGbc.weighty = 0.45;
+        rightPanel.add(flightsCard, rightGbc);
+
+        rightGbc.gridy = 1;
+        rightGbc.weighty = 0.55;
+        rightGbc.insets = new Insets(20, 0, 0, 0); // Spacing between cards
+        rightPanel.add(bookingsCard, rightGbc);
+
+        // GridBagConstraints Setup for Left/Right in splitPanel
         gbc.gridx = 0;
         gbc.weightx = 0.35;
+        gbc.insets = new Insets(0, 0, 0, 0);
         splitPanel.add(leftPanel, gbc);
 
         gbc.gridx = 1;
@@ -186,15 +289,31 @@ public class BookFlightForm extends BaseCustomerFrame {
 
     private void loadAvailableFlights() {
         try {
-            HttpResponse<String> response = HttpClientUtil.sendGetRequest("/flights/status");
+            HttpResponse<String> response = HttpClientUtil.sendGetRequest("/flights/status?page=" + currentPage + "&size=5");
             if (response.statusCode() == 200) {
                 tableModel.setRowCount(0);
                 JSONArray flights;
                 try {
-                    flights = new JSONArray(response.body());
+                    JSONObject pageObj = new JSONObject(response.body());
+                    flights = pageObj.getJSONArray("content");
+                    totalPages = pageObj.optInt("totalPages", 1);
+                    currentPage = pageObj.optInt("number", 0);
                 } catch (Exception ex) {
-                    flights = new JSONObject(response.body()).getJSONArray("content");
+                    flights = new JSONArray(response.body());
+                    totalPages = 1;
+                    currentPage = 0;
                 }
+                
+                if (pageLabel != null) {
+                    pageLabel.setText(String.format("Page %d of %d", currentPage + 1, totalPages));
+                }
+                if (prevButton != null) {
+                    prevButton.setEnabled(currentPage > 0);
+                }
+                if (nextButton != null) {
+                    nextButton.setEnabled(currentPage < totalPages - 1);
+                }
+
                 for (int i = 0; i < flights.length(); i++) {
                     JSONObject flight = flights.getJSONObject(i);
                     String flightNum = flight.optString("flightNumber", flight.optString("flight_number", "N/A"));
@@ -205,6 +324,37 @@ public class BookFlightForm extends BaseCustomerFrame {
                     String status = flight.optString("bookingStatus", flight.optString("booking_status", "AVAILABLE"));
 
                     tableModel.addRow(new Object[]{flightNum, origin, destination, availableSeats, String.format("$%.2f", price), status});
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void loadUserBookings() {
+        try {
+            HttpResponse<String> response = HttpClientUtil.sendGetRequest("/bookings");
+            if (response.statusCode() == 200) {
+                bookingsTableModel.setRowCount(0);
+                JSONArray bookings = new JSONArray(response.body());
+                for (int i = 0; i < bookings.length(); i++) {
+                    JSONObject booking = bookings.getJSONObject(i);
+                    long bookingId = booking.optLong("bookingId", booking.optLong("booking_id", -1));
+                    String flightNum = booking.optString("flightNumber", booking.optString("flight_number", "N/A"));
+                    String passenger = booking.optString("passengerName", booking.optString("passenger_name", "N/A"));
+                    int tickets = booking.optInt("numberOfTickets", booking.optInt("number_of_tickets", 0));
+                    double totalPrice = booking.optDouble("totalPrice", booking.optDouble("total_price", 0.0));
+                    String status = booking.optString("status", "CONFIRMED");
+                    
+                    String bookingDateStr = "N/A";
+                    String fullDate = booking.optString("bookingDate", booking.optString("booking_date", ""));
+                    if (!fullDate.isEmpty() && fullDate.length() >= 10) {
+                        bookingDateStr = fullDate.substring(0, 10);
+                    }
+
+                    bookingsTableModel.addRow(new Object[]{
+                        bookingId, flightNum, passenger, tickets, String.format("$%.2f", totalPrice), status, bookingDateStr
+                    });
                 }
             }
         } catch (Exception e) {
@@ -389,6 +539,7 @@ public class BookFlightForm extends BaseCustomerFrame {
                 );
                 JOptionPane.showMessageDialog(this, bill, "Booking Confirmation", JOptionPane.INFORMATION_MESSAGE);
                 loadAvailableFlights(); // Reload seats
+                loadUserBookings(); // Reload user bookings
             } else {
                 confirmationLabel.setText("Booking failed: " + response.body());
                 confirmationLabel.setForeground(Color.RED);
@@ -396,6 +547,83 @@ public class BookFlightForm extends BaseCustomerFrame {
         } catch (Exception e) {
             confirmationLabel.setText("Error: " + e.getMessage());
             confirmationLabel.setForeground(Color.RED);
+        }
+    }
+
+    private void showCancelBookingDialog() {
+        JTextField bookingIdField = new JTextField(15);
+        bookingIdField.setFont(new Font("Segoe UI", Font.PLAIN, 14));
+        
+        JPanel inputPanel = new JPanel(new BorderLayout(5, 5));
+        inputPanel.setOpaque(false);
+        
+        JLabel promptLabel = new JLabel("Enter Booking ID to cancel:");
+        promptLabel.setFont(new Font("Segoe UI", Font.BOLD, 14));
+        promptLabel.setForeground(DARK_BLUE);
+        
+        inputPanel.add(promptLabel, BorderLayout.NORTH);
+        inputPanel.add(bookingIdField, BorderLayout.CENTER);
+        
+        int result = JOptionPane.showConfirmDialog(
+            this, 
+            inputPanel, 
+            "Cancel Booking", 
+            JOptionPane.OK_CANCEL_OPTION, 
+            JOptionPane.PLAIN_MESSAGE
+        );
+        
+        if (result == JOptionPane.OK_OPTION) {
+            String bookingIdText = bookingIdField.getText().trim();
+            if (bookingIdText.isEmpty()) {
+                JOptionPane.showMessageDialog(this, "Booking ID cannot be empty.", "Error", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+            
+            try {
+                Long bookingId = Long.parseLong(bookingIdText);
+                
+                // Show confirmation before cancellation
+                int confirm = JOptionPane.showConfirmDialog(
+                    this,
+                    "Are you sure you want to cancel Booking #" + bookingId + "?\nThis action cannot be undone.",
+                    "Confirm Cancellation",
+                    JOptionPane.YES_NO_OPTION,
+                    JOptionPane.WARNING_MESSAGE
+                );
+                
+                if (confirm == JOptionPane.YES_OPTION) {
+                    HttpResponse<String> response = HttpClientUtil.sendDeleteRequest("/bookings/" + bookingId);
+                    if (response.statusCode() == 200) {
+                        JOptionPane.showMessageDialog(
+                            this, 
+                            "Booking #" + bookingId + " has been successfully cancelled.", 
+                            "Cancellation Successful", 
+                            JOptionPane.INFORMATION_MESSAGE
+                        );
+                        confirmationLabel.setText("Booking #" + bookingId + " cancelled.");
+                        confirmationLabel.setForeground(new Color(46, 204, 113));
+                        loadAvailableFlights(); // Reload seats
+                        loadUserBookings(); // Reload user bookings
+                    } else {
+                        String errorMsg = response.body();
+                        if (errorMsg == null || errorMsg.trim().isEmpty()) {
+                            errorMsg = "Booking ID not found or database constraint error.";
+                        }
+                        JOptionPane.showMessageDialog(
+                            this, 
+                            "Failed to cancel booking: " + errorMsg, 
+                            "Cancellation Failed", 
+                            JOptionPane.ERROR_MESSAGE
+                        );
+                        confirmationLabel.setText("Cancellation failed.");
+                        confirmationLabel.setForeground(Color.RED);
+                    }
+                }
+            } catch (NumberFormatException nfe) {
+                JOptionPane.showMessageDialog(this, "Please enter a valid numeric Booking ID.", "Invalid Input", JOptionPane.ERROR_MESSAGE);
+            } catch (Exception ex) {
+                JOptionPane.showMessageDialog(this, "Error communicating with server: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+            }
         }
     }
 

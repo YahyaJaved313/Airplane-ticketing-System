@@ -238,7 +238,7 @@ public class AdminDashboardForm extends JFrame {
         tableTitle.setForeground(DARK_BLUE);
         tableTitle.setBorder(new EmptyBorder(0, 0, 20, 0));
 
-        String[] columns = {"Flight Number", "Origin", "Destination", "Departure", "Arrival", "Price"};
+        String[] columns = {"Flight Number", "Origin", "Destination", "Departure", "Arrival", "Price", "Total Seats", "Available Seats", "Booked Seats"};
         tableModel = new DefaultTableModel(columns, 0) {
             @Override
             public boolean isCellEditable(int row, int column) {
@@ -312,13 +312,18 @@ public class AdminDashboardForm extends JFrame {
                 return;
             }
 
-            HttpResponse<String> res = HttpClientUtil.sendGetRequest("/admin/flights");
+            HttpResponse<String> res = HttpClientUtil.sendGetRequest("/admin/flights/summary");
             System.out.println("API Response Status: " + res.statusCode());
             System.out.println("API Response Body: " + res.body());
 
             if (res.statusCode() == 200) {
                 tableModel.setRowCount(0);
-                JSONArray flights = new JSONObject(res.body()).getJSONArray("content");
+                JSONArray flights;
+                try {
+                    flights = new JSONArray(res.body());
+                } catch (Exception ex) {
+                    flights = new JSONObject(res.body()).getJSONArray("content");
+                }
                 DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
 
                 for (int i = 0; i < flights.length(); i++) {
@@ -332,7 +337,10 @@ public class AdminDashboardForm extends JFrame {
                             f.getString("destination"),
                             departure.format(formatter),
                             arrival.format(formatter),
-                            f.optDouble("price", 0.0)
+                            f.optDouble("price", 0.0),
+                            f.optInt("totalSeats", 0),
+                            f.optInt("availableSeats", 0),
+                            f.optInt("bookedSeats", 0)
                     });
                 }
                 messageLabel.setText("Flights loaded: " + flights.length());
