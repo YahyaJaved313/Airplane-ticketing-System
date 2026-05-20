@@ -141,7 +141,7 @@ public class BookFlightForm extends BaseCustomerFrame {
         selectTitle.setForeground(PRIMARY_BLUE);
         selectTitle.setBorder(new EmptyBorder(0, 0, 15, 0));
 
-        String[] columns = {"Flight #", "Origin", "Destination", "Seats Available", "Price"};
+        String[] columns = {"Flight #", "Origin", "Destination", "Seats Available", "Price", "Status"};
         tableModel = new DefaultTableModel(columns, 0) {
             @Override
             public boolean isCellEditable(int row, int column) {
@@ -186,14 +186,14 @@ public class BookFlightForm extends BaseCustomerFrame {
 
     private void loadAvailableFlights() {
         try {
-            HttpResponse<String> response = HttpClientUtil.sendGetRequest("/flights");
+            HttpResponse<String> response = HttpClientUtil.sendGetRequest("/flights/status");
             if (response.statusCode() == 200) {
                 tableModel.setRowCount(0);
-                JSONArray flights = new JSONArray();
+                JSONArray flights;
                 try {
-                    flights = new JSONObject(response.body()).getJSONArray("content");
-                } catch (Exception ex) {
                     flights = new JSONArray(response.body());
+                } catch (Exception ex) {
+                    flights = new JSONObject(response.body()).getJSONArray("content");
                 }
                 for (int i = 0; i < flights.length(); i++) {
                     JSONObject flight = flights.getJSONObject(i);
@@ -202,8 +202,9 @@ public class BookFlightForm extends BaseCustomerFrame {
                     String destination = flight.optString("destination", "N/A");
                     int availableSeats = flight.optInt("availableSeats", flight.optInt("available_seats", 100));
                     double price = flight.optDouble("price", 0.0);
+                    String status = flight.optString("bookingStatus", flight.optString("booking_status", "AVAILABLE"));
 
-                    tableModel.addRow(new Object[]{flightNum, origin, destination, availableSeats, String.format("$%.2f", price)});
+                    tableModel.addRow(new Object[]{flightNum, origin, destination, availableSeats, String.format("$%.2f", price), status});
                 }
             }
         } catch (Exception e) {
